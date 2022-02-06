@@ -1,24 +1,30 @@
 package LaptopAsHeater;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingWorker;
 
 public class WorkerTask extends SwingWorker<Void, WorkerStatus>
 {
 
-    protected volatile boolean shutdownRequested = false;
+    protected AtomicBoolean enabled = new AtomicBoolean(false);
     protected volatile WorkerState workerState = WorkerState.NEW;
-    private double q;
+    private double dummy;
 
     public WorkerState getWorkerState()
     {
         return workerState;
     }
 
-    public void requestShutdown()
+    public void setRunMode()
     {
-        shutdownRequested = true;
+        enabled.set(true);
+    }
+
+    public void setStopMode()
+    {
+        enabled.set(false);
     }
 
     /**
@@ -27,43 +33,49 @@ public class WorkerTask extends SwingWorker<Void, WorkerStatus>
     @Override
     protected Void doInBackground() throws InterruptedException
     {
-        long subtotal = 0;
-        long total = 0;
+        long runtime = 0;
 
         /**
          * Running State
          */
-        workerState = WorkerState.RUNNING;
-        publish(new WorkerStatus(total, workerState));  
-        
-        while (!isCancelled() && !shutdownRequested)
+        while (!isCancelled())
         {
-            subtotal++;
-            if (subtotal > 1000)
+            publish(new WorkerStatus(runtime, workerState));
+            runtime++;
+
+            if (enabled.get())
             {
-                subtotal = 0;
-                total++;
-                publish(new WorkerStatus(total, workerState));
+                workerState = WorkerState.RUNNING;
+                burnCPU(1000); // milliseconds
             }
-            for (int i=1; i<100_000; i++)
+            else
             {
-                double x = Math.random();
-                double y = Math.random();
-                q = x/y;
+                workerState = WorkerState.STOPPED;
+                Thread.sleep(1000); // milliseconds
             }
         }
         /**
          * Stopped State
          */
-        workerState = WorkerState.STOPPED;
-        publish(new WorkerStatus(total, workerState));
+        workerState = WorkerState.DONE;
+        publish(new WorkerStatus(runtime, workerState));
 
         return null;
     }
 
+    protected void burnCPU(long duration)
+    {
+        long start = System.currentTimeMillis();
+        while ((System.currentTimeMillis() - start) < 1000)
+        {
+            double x = Math.random();
+            double y = Math.random();
+            dummy = x / y;
+        }
+    }
+
     /**
-     * Receives data chunks from the publish() method asynchronously on the
-     * Event Dispatch Thread.
+     * Receives data chunks from the publish() method asynchronously on the Event Dispatch Thread.
      */
     @Override
     protected void process(List<WorkerStatus> statusList)

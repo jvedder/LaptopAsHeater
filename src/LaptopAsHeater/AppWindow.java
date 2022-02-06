@@ -86,9 +86,14 @@ public class AppWindow extends JFrame implements ActionListener
         outerPanel.add(buttonPanel);
         this.getContentPane().add(outerPanel);
 
+        // create a background worker ready to use
+        workerTask = new WorkerTask();
+        workerTask.execute();
+
         // Display the window.
         pack();
         setVisible(true);
+
     }
 
     public static AppWindow getInstance()
@@ -101,21 +106,20 @@ public class AppWindow extends JFrame implements ActionListener
     {
         if ("Start" == e.getActionCommand())
         {
-            if ((workerTask == null) || (workerTask.getWorkerState() == WorkerState.DONE))
+            if ((workerTask != null) || (workerTask.getWorkerState() != WorkerState.DONE))
             {
                 startButton.setEnabled(false);
                 stopButton.setEnabled(true);
-                workerTask = new WorkerTask();
-                workerTask.execute();
+                workerTask.setRunMode();
             }
         }
         else if ("Stop" == e.getActionCommand())
         {
-            if (workerTask != null)
+            if ((workerTask != null) || (workerTask.getWorkerState() != WorkerState.DONE))
             {
                 startButton.setEnabled(true);
                 stopButton.setEnabled(false);
-                workerTask.requestShutdown();
+                workerTask.setStopMode();
             }
         }
 
